@@ -21,6 +21,7 @@
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d'); // Your canvas 2D context
+const size = 24;
 
 const spritesheets = {
   characters: new Image(),
@@ -34,17 +35,29 @@ spritesheets.statics.src = "spritesheetStatics.png";
 spritesheets.tiles.src = "spritesheetTiles.png";
 spritesheets.text.src = "spritesheetText.png";
 
-//AssetPosition types: 0 = Nouns, 1 = Operators, 2 = Properties
+//AssetPosition types: 0 = Nouns, 1 = Operators, 2 = Properties, 3 = Particles
 const assetPositions = {
-  "BABA": {sheet: spritesheets.characters, col: 26,  row: 1,    color: [3, 20, 21],  type: 0},
-  "WALL": {sheet: spritesheets.tiles,      col: 26,  row: 1501, color: [6, 6, 1],    type: 0},
-  "ROCK": {sheet: spritesheets.statics,    col: 151, row: 601,  color: [32, 31, 32], type: 0},
-  "FLAG": {sheet: spritesheets.statics,    col: 26,  row: 226,  color: [14, 32, 14], type: 0},
-  "TILE": {sheet: spritesheets.statics,    col: 151, row: 751,  color: [0, 6, 1],    type: 0},
-  "IS":   {sheet: spritesheets.text,       col: 251, row: 76,   color: [3, 1, 3],    type: 1},
-  "YOU":  {sheet: spritesheets.text,       col: 251, row: 226,  color: [3, 20, 21],  type: 2}
+  "BABA":    {sheet: spritesheets.characters, col: 26,  row: 1,    color: [3, 20, 21],  type: 0},
+  "WALL":    {sheet: spritesheets.tiles,      col: 26,  row: 1501, color: [6, 6, 1],    type: 0},
+  "ROCK":    {sheet: spritesheets.statics,    col: 151, row: 601,  color: [32, 30, 31], type: 0},
+  "FLAG":    {sheet: spritesheets.statics,    col: 26,  row: 226,  color: [14, 32, 14], type: 0},
+  "TILE":    {sheet: spritesheets.statics,    col: 151, row: 751,  color: [0, 6, 1],    type: 0},
+  "IS":      {sheet: spritesheets.text,       col: 251, row: 76,   color: [3, 1, 3],    type: 1},
+  "YOU":     {sheet: spritesheets.text,       col: 251, row: 226,  color: [3, 20, 21],  type: 2},
+  "WIN":     {sheet: spritesheets.text,       col: 251, row: 1123, color: [14, 32, 14], type: 2},
+  "PUSH":    {sheet: spritesheets.text,       col: 26,  row: 301,  color: [32, 30, 31], type: 2},
+  "STOP":    {sheet: spritesheets.text,       col: 176, row: 301,  color: [26, 25, 26], type: 2},
+  "dust":    {sheet: spritesheets.statics,    col: 276, row: 1010, color: 0,            type: 3},
+  "sparkle": {sheet: spritesheets.statics,    col: 355, row: 1010, color: 0,            type: 3},
+  "ring":    {sheet: spritesheets.statics,    col: 276, row: 1038, color: 0,            type: 3},
   // ...add more as needed
 };
+
+const particleData = {
+  "dust":    {size: 8,  speed: 0.5, xshift: 1/3, yshift: 2/3, gold: false, smooth: false},
+  "sparkle": {size: 8,  speed: 1.5, xshift: 1/3, yshift: 1/3, gold: true,  smooth: false},
+  "ring":    {size: 16, speed: 5,   xshift: 1/6, yshift: 1/6, gold: true,  smooth: true}
+}
 
 const levelData = {
   1: {width: 33, height: 18},
@@ -96,29 +109,24 @@ const gameObjects = [
   { type: "TILE", x: 14, y: 10 },
   { type: "TILE", x: 15, y: 10 },
   { type: "TILE", x: 16, y: 10 },
-  { type: "TILE", x: 17, y: 10 },
   { type: "TILE", x: 18, y: 10 },
   { type: "TILE", x: 19, y: 10 },
   { type: "TILE", x: 20, y: 10 },
   { type: "TILE", x: 21, y: 10 },
   { type: "TILE", x: 22, y: 10 },
   { type: "TILE", x: 12, y: 11 },
-  { type: "TILE", x: 13, y: 11 },
   { type: "TILE", x: 14, y: 11 },
   { type: "TILE", x: 15, y: 11 },
   { type: "TILE", x: 16, y: 11 },
-  { type: "TILE", x: 17, y: 11 },
   { type: "TILE", x: 18, y: 11 },
   { type: "TILE", x: 19, y: 11 },
   { type: "TILE", x: 20, y: 11 },
-  { type: "TILE", x: 21, y: 11 },
   { type: "TILE", x: 22, y: 11 },
   { type: "TILE", x: 12, y: 12 },
   { type: "TILE", x: 13, y: 12 },
   { type: "TILE", x: 14, y: 12 },
   { type: "TILE", x: 15, y: 12 },
   { type: "TILE", x: 16, y: 12 },
-  { type: "TILE", x: 17, y: 12 },
   { type: "TILE", x: 18, y: 12 },
   { type: "TILE", x: 19, y: 12 },
   { type: "TILE", x: 20, y: 12 },
@@ -153,7 +161,16 @@ const gameObjects = [
   { type: "BABA", x: 13, y: 11 },
   { type: "baba", x: 12, y: 7  },
   { type: "is",   x: 13, y: 7  },
-  { type: "you" , x: 14, y: 7  }
+  { type: "you",  x: 14, y: 7  },
+  { type: "flag", x: 20, y: 7  },
+  { type: "is",   x: 21, y: 7  },
+  { type: "win",  x: 22, y: 7  },
+  { type: "wall", x: 12, y: 15 },
+  { type: "is",   x: 13, y: 15 },
+  { type: "stop", x: 14, y: 15 },
+  { type: "rock", x: 20, y: 15 },
+  { type: "is",   x: 21, y: 15 },
+  { type: "push", x: 22, y: 15 }
   // etc.
 ];
 
@@ -170,13 +187,16 @@ gameObjects.forEach((obj) => {
   
   obj.lastx = obj.x;
   obj.lasty = obj.y;
+  
+  obj.hist = [];
+  obj.particles = [];
 });
 
 const colorizedSpriteCache = {};
 
 // Colorize a sprite (multiply blend) and cache it
-function getColorizedSprite(asset, frameIndex, spriteState, color) { 
-  const size = 24;
+function getColorizedSprite(asset, frameIndex, spriteState, color, particle = false) { 
+  const spriteSize = particle ? particleData[asset.type].size : size;
   const sheet = asset.sheet;
   
   if (!sheet.complete || !sheet.naturalWidth) {
@@ -185,7 +205,7 @@ function getColorizedSprite(asset, frameIndex, spriteState, color) {
   }
   
   const sheetName = Object.keys(spritesheets).find(key => spritesheets[key] === asset.sheet);
-  const cacheKey = asset.type + "_" + frameIndex + "_" + spriteState;
+  const cacheKey = asset.type + "_" + frameIndex + "_" + spriteState + "_" + color;
 
   if (colorizedSpriteCache[cacheKey]) {
     return colorizedSpriteCache[cacheKey];
@@ -193,31 +213,31 @@ function getColorizedSprite(asset, frameIndex, spriteState, color) {
 
   // Create offscreen canvas
   const offCanvas = document.createElement('canvas');
-  offCanvas.width = size;
-  offCanvas.height = size;
+  offCanvas.width = spriteSize;
+  offCanvas.height = spriteSize;
   const offCtx = offCanvas.getContext('2d');
 
   // 1. Draw the grayscale sprite
-  offCtx.clearRect(0, 0, size, size);
+  offCtx.clearRect(0, 0, spriteSize, spriteSize);
   offCtx.drawImage(
     asset.sheet,
-    asset.col + (size + 1) * spriteState, asset.row + (size + 1) * frameIndex,
-    size, size,
-    0, 0, size, size
+    asset.col + (spriteSize + 1) * spriteState, asset.row + (spriteSize + 1) * frameIndex,
+    spriteSize, spriteSize,
+    0, 0, spriteSize, spriteSize
   );
 
   // 2. Multiply blend with color
   offCtx.globalCompositeOperation = 'multiply';
   offCtx.fillStyle = color;
-  offCtx.fillRect(0, 0, size, size);
+  offCtx.fillRect(0, 0, spriteSize, spriteSize);
 
   // 3. Keep alpha
   offCtx.globalCompositeOperation = 'destination-in';
   offCtx.drawImage(
     asset.sheet,
-    asset.col + (size + 1) * spriteState, asset.row + (size + 1) * frameIndex,
-    size, size,
-    0, 0, size, size
+    asset.col + (spriteSize + 1) * spriteState, asset.row + (spriteSize + 1) * frameIndex,
+    spriteSize, spriteSize,
+    0, 0, spriteSize, spriteSize
   );
 
   // Restore
@@ -227,64 +247,140 @@ function getColorizedSprite(asset, frameIndex, spriteState, color) {
   return offCanvas;
 }
 
+//equations
+let eqs = [];
+
+//transformations
+let tfs = []
+
 function parseText() {
   const text = gameObjects.filter((obj) => (obj.text));
+  text.forEach((t) => {t.active = false;});
+  eqs = [];
+  tfs = [];
   
   const nouns = text.filter((obj) => (assetPositions[obj.type].type === 0));
   const operators = text.filter((obj) => (assetPositions[obj.type].type === 1));
   const properties = text.filter((obj) => (assetPositions[obj.type].type === 2));
   
   nouns.forEach((noun) => {
-    if (gameObjects.find((is) => (is.type === "IS" && is.x === noun.x + 1 && is.y === noun.y))) {
+    if (gameObjects.some((is) => (is.type === "IS" && is.x === noun.x + 1 && is.y === noun.y))) {
 	  properties.filter((prop) => (prop.x === noun.x + 2 && prop.y === noun.y)).forEach((prop) => {
 	    noun.active = true;
 		prop.active = true;
-		operators.forEach((oper) => (oper.active = (oper.x === noun.x + 1 && oper.y === noun.y)))
+		operators.forEach((oper) => (oper.active += (oper.type === "IS" && oper.x === noun.x + 1 && oper.y === noun.y)));
+		if (!(noun.type in eqs)) {eqs[noun.type] = [];}
+		eqs[noun.type].push(prop.type);
+      })
+	  nouns.filter((tfnoun) => (tfnoun.x === noun.x + 2 && tfnoun.y === noun.y)).forEach((tfnoun) => {
+	    noun.active = true;
+		tfnoun.active = true;
+		operators.forEach((oper) => (oper.active += (oper.type === "IS" && oper.x === noun.x + 1 && oper.y === noun.y)));
+		if (!(noun.type in tfs)) {tfs[noun.type] = [];}
+		tfs[noun.type].push(tfnoun.type);
+      })
+	}
+	if (gameObjects.some((is) => (is.type === "IS" && is.y === noun.y + 1 && is.x === noun.x))) {
+	  properties.filter((prop) => (prop.y === noun.y + 2 && prop.x === noun.x)).forEach((prop) => {
+	    noun.active = true;
+		prop.active = true;
+		operators.forEach((oper) => (oper.active += (oper.type === "IS" && oper.y === noun.y + 1 && oper.x === noun.x)));
+		if (!(noun.type in eqs)) {eqs[noun.type] = [];}
+		eqs[noun.type].push(prop.type);
+      })
+	  nouns.filter((tfnoun) => (tfnoun.y === noun.y + 2 && tfnoun.x === noun.x)).forEach((tfnoun) => {
+	    noun.active = true;
+		tfnoun.active = true;
+		operators.forEach((oper) => (oper.active += (oper.type === "IS" && oper.y === noun.y + 1 && oper.x === noun.x)));
+		if (!(noun.type in tfs)) {tfs[noun.type] = [];}
+		tfs[noun.type].push(tfnoun.type);
       })
 	}
   });
+  for (const [noun, tfnouns] of Object.entries(tfs)) {
+    gameObjects.filter((obj) => (!obj.text && obj.type === noun)).forEach((obj) => {
+	  obj.tf = tfnouns[0];
+	  if (tfnouns.length > 1)
+	  {
+	    for (const tfnoun of tfnouns.slice(1)) {
+		  gameObjects.push({ type: tfnoun, x: obj.x, y: obj.y, text: false, active: false, dir: 0, state: 0, frameSeed: Math.floor(Math.random() * 3), lastx: obj.x, lasty: obj.y, hist: new Array(moves).fill(0), particles: []});
+		  if (gameObjects.length > 200) {alert("TOO COMPLEX!")}
+		}
+	  }
+	});
+  }
+  for (const [noun, tfnouns] of Object.entries(tfs)) {
+    gameObjects.filter((obj) => (!obj.text && obj.type === noun)).forEach((obj) => {
+      obj.type = obj.tf;
+	});
+  }
 }
 
 function connectTiles() {
   gameObjects.forEach((obj) => {
     if (assetPositions[obj.type].sheet === spritesheets.tiles) {
 	  obj.state = 0
-	  if (gameObjects.find((oth) => (obj.x === levelData[1].width || (oth.type === obj.type && oth.x === obj.x + 1 && oth.y === obj.y)))) {
+	  if (gameObjects.some((oth) => (obj.x === levelData[1].width || (!oth.text && oth.type === obj.type && oth.x === obj.x + 1 && oth.y === obj.y)))) {
 	    obj.state += 1
 	  }
-      if (gameObjects.find((oth) => (obj.y === 1 || (oth.type === obj.type && oth.y === obj.y - 1 && oth.x === obj.x)))) {
+      if (gameObjects.some((oth) => (obj.y === 1 || (!oth.text && oth.type === obj.type && oth.y === obj.y - 1 && oth.x === obj.x)))) {
 	    obj.state += 2
 	  }
-	  if (gameObjects.find((oth) => (obj.x === 1 || (oth.type === obj.type && oth.x === obj.x - 1 && oth.y === obj.y)))) {
+	  if (gameObjects.some((oth) => (obj.x === 1 || (!oth.text && oth.type === obj.type && oth.x === obj.x - 1 && oth.y === obj.y)))) {
 	    obj.state += 4
 	  }
-	  if (gameObjects.find((oth) => (obj.y === levelData[1].height || (oth.type === obj.type && oth.y === obj.y + 1 && oth.x === obj.x)))) {
+	  if (gameObjects.some((oth) => (obj.y === levelData[1].height || (!oth.text && oth.type === obj.type && oth.y === obj.y + 1 && oth.x === obj.x)))) {
 	    obj.state += 8
 	  }
+    } else if (assetPositions[obj.type].sheet === spritesheets.characters) {
+	  obj.state = ((obj.state) % 4) + (4 * obj.dir)
+    } else {obj.state = 0;}
+  });
+}
+
+function checkWin() {
+  gameObjects.filter((you) => (is(you, "YOU"))).forEach((you) => {
+    if (gameObjects.some((win) => (eqs[you.type].includes("WIN") || win.x === you.x && win.y === you.y && is(win, "WIN")))) {
+	  for (let i = 0; i < 9; i++) {you.particles.push({type: "ring", x: you.x, y: you.y, dirbypi: 2*Math.random(), time: 1800 + 100 * Math.floor(3*Math.random()), speed: 4 + Math.random(), created: t});}
+	  levelComplete = true;
     }
   });
 }
 
-function drawAsset(ctx, assetName, x, y, frameIndex = 0, spriteState = 0, color) {
+// e.g. is("BABA", "YOU")
+function is(noun, property) {
+  return (!noun.text && noun.type in eqs && eqs[noun.type].includes(property)) || (property === "PUSH" && noun.text);
+}
+
+function drawAsset(ctx, assetName, x, y, frameIndex = 0, spriteState = 0, color, particle = false) {
   const asset = assetPositions[assetName];
-  const sheet = asset.sheet;
   const unitX = canvas.width / levelData[1].width
   const unitY = canvas.height / levelData[1].height
-
-  const size = 24;
   
   const colorized = getColorizedSprite(
       {...asset, type: assetName}, // asset, with type info
       frameIndex,
       spriteState,
-      color
+      color,
+	  particle
   );
-  ctx.drawImage(
-    colorized,
-    0, 0, size, size,
-    (x - 1) * unitX, (y - 1) * unitY,
-    unitX, unitY
-  );
+  if (particle) {
+    let xshift = particleData[assetName].xshift;
+	let yshift = particleData[assetName].yshift;
+    ctx.drawImage(
+      colorized,
+      0, 0, particleData[assetName].size, particleData[assetName].size,
+      (x - 1 + xshift) * unitX, (y - 1 + yshift) * unitY,
+      unitX * (particleData[assetName].size / size), unitY * (particleData[assetName].size / size)
+	);
+  } else {
+    ctx.drawImage(
+      colorized,
+      0, 0, size, size,
+      (x - 1) * unitX, (y - 1) * unitY,
+      unitX, unitY
+    );
+  }
 }
 
 var everythingLoaded = false
@@ -316,10 +412,8 @@ function drawScene() {
 	realProg = 1 - (1 - realProg) * (1 - realProg)
   }
   
-  // Draw each game object
+  // Draw each game object and particle
   for (const obj of gameObjects) {
-    x = (obj.x * realProg) + (obj.lastx * (1 - realProg));
-    y = (obj.y * realProg) + (obj.lasty * (1 - realProg));
     drawAsset(
 	  ctx, obj.type,
 	  (obj.x * realProg) + (obj.lastx * (1 - realProg)),
@@ -327,6 +421,32 @@ function drawScene() {
 	  (animationFrame + obj.frameSeed) % 3,
 	  obj.text ? -1 : obj.state,
 	  palette[assetPositions[obj.type].color[obj.text + obj.active]]);
+	
+	obj.particles.filter((part) => (t - part.created >= part.time)).forEach((part) => {obj.particles.splice(obj.particles.indexOf(part), 1);})
+	obj.particles.forEach((part) => {
+	  let speed = part.speed;
+	  let partProg = (t - part.created) / part.time
+	  let partState; 
+	  if (particleData[part.type].smooth) {
+	    const partAnimationSpeed = 100
+	    partState = part.time/partAnimationSpeed - Math.floor((part.time/partAnimationSpeed + 1)*partProg);
+		if (partState > 3) {
+		  partState = 4 + ((partState - 3) % 3)
+		}
+	    partProg = 1 - (1 - partProg) * (1 - partProg);
+	  } else {
+	    partState = 5 - Math.floor(6*partProg);
+	  }
+	  
+	  drawAsset(
+	    ctx, part.type,
+	    part.x + partProg * speed * (Math.cos(Math.PI*part.dirbypi)),
+		part.y - partProg * speed * (Math.sin(Math.PI*part.dirbypi)),
+		0, 
+		partState,
+		palette[particleData[part.type].gold ? 14 : assetPositions[obj.type].color[obj.text + obj.active]],
+		true);
+	})
   }
 }
 
@@ -358,8 +478,21 @@ const animationSpeedS = 100;
 let animatingS = false;
 let lastFrameTimeS = 0;
 let prog = 0;
+let t = 0;
+
+const maxSparkleInterval = 1500
+let sparkleTime = maxSparkleInterval * Math.random();
+let lastSparkleTime = 0
+let sparkle = false;
 
 function animate(time) {
+  let sparkle = false;
+  if (time - lastSparkleTime > sparkleTime) {
+    lastSparkleTime = time;
+	sparkleTime = maxSparkleInterval * Math.random();
+	sparkle = true;
+  }
+  if (sparkle && !levelComplete) {gameObjects.filter((obj) => (is(obj, "WIN"))).forEach((obj) => {obj.particles.push({type: "sparkle", x: obj.x, y: obj.y, dirbypi: 2*Math.random(), time: 900, speed: 1.5, created: t});});}
   if (time - lastFrameTime > animationSpeed) {
     animationFrame++;
     lastFrameTime = time;
@@ -372,10 +505,14 @@ function animate(time) {
     lastFrameTimeS = time
   }
   prog = time - lastFrameTimeS;
+  t = time;
   
   drawScene();
   requestAnimationFrame(animate);
 }
+
+let levelComplete = false;
+let moves = 0;
 
 parseText();
 // Initial tile connection
@@ -387,31 +524,88 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 window.addEventListener('keydown', function(event) {
-  if (event.repeat || prog != 0) return; // Ignore auto-repeats and when animating smooth movement
+  console.log("hello")
+  if (prog != 0 || levelComplete) return; // Ignore auto-repeats and when animating smooth movement
+  gameObjects.forEach((obj) => {
+    obj.lastx = obj.x;
+	obj.lasty = obj.y;
+	if (event.key.startsWith("Arrow")) {
+	  obj.hist.push({type: obj.type, x: obj.x, y: obj.y, dir: obj.dir, state: obj.state, text: obj.text, active: obj.active});
+	}
+  })
+  if (event.key.startsWith("Arrow")) {moves++;}
   for (const obj of gameObjects) {
-    if (!obj.text) {
-      if (obj.type === "BABA") {
-	    let arrowKeyPressed = event.key.startsWith("Arrow");
-	    if (arrowKeyPressed) {
-	      obj.lastx = obj.x;
-		  obj.lasty = obj.y;
-	    }
-        switch(event.key) {
-          case 'ArrowRight': if (obj.x != levelData[1].width)  {obj.x += 1; obj.dir = 0} break;
-		  case 'ArrowUp':    if (obj.y != 1)                   {obj.y -= 1; obj.dir = 1} break;
-          case 'ArrowLeft':  if (obj.x != 1)                   {obj.x -= 1; obj.dir = 2} break;
-          case 'ArrowDown':  if (obj.y != levelData[1].height) {obj.y += 1; obj.dir = 3} break;
+    if (event.key.startsWith("Arrow") && is(obj, "YOU")) {
+	  let collDetect = true;
+	  let stillPushing = true;
+	  let canMove = true;
+	  let collx = obj.x;
+	  let colly = obj.y;
+	  let pushObjs = [];
+	  while (collDetect) {
+	  collDetect = false;
+	  stillPushing = false;
+	    switch(event.key) {
+          case 'ArrowRight': collx += 1; break;
+	      case 'ArrowUp':    colly -= 1; break;
+          case 'ArrowLeft':  collx -= 1; break;
+          case 'ArrowDown':  colly += 1; break;
         }
-	    if (arrowKeyPressed) {
-	      animatingS = true;
-	    }
-	    if (assetPositions[obj.type].sheet === spritesheets.characters) {
-	      obj.state = ((obj.state + 1) % 4) + (4 * obj.dir);
-	    }
+	    if (gameObjects.some((stop) => (stop.x === collx && stop.y === colly && is(stop, "STOP") && !is(stop, "YOU"))) || collx < 1 || colly < 1 || collx > levelData[1].width || colly > levelData[1].height) {canMove = false; break;}
+	    gameObjects.filter((push) => (push.x === collx && push.y === colly && is(push, "PUSH") && !is(push, "YOU"))).forEach((push) => {pushObjs.push(push); collDetect = true; stillPushing = true;})
+		gameObjects.filter((push) => (push.x === collx && push.y === colly && is(push, "YOU"))).forEach((push) => {collDetect = true;})
+	  }
+	  
+	  switch(event.key) {
+        case 'ArrowRight': {obj.dir = 0;} break;
+	    case 'ArrowUp':    {obj.dir = 1;} break;
+        case 'ArrowLeft':  {obj.dir = 2;} break;
+        case 'ArrowDown':  {obj.dir = 3;} break;
       }
+	  if (canMove) {
+	    pushObjs.forEach((pushObj) => {
+		  pushObj.particles.push({type: "dust", x: pushObj.x, y: pushObj.y, dirbypi: (1 + (obj.dir * 0.5) % 2), time: 900, speed: 0.5, created: t});
+          switch(event.key) {
+            case 'ArrowRight': pushObj.x += 1; pushObj.dir = 0; break;
+		    case 'ArrowUp':    pushObj.y -= 1; pushObj.dir = 1; break;
+            case 'ArrowLeft':  pushObj.x -= 1; pushObj.dir = 2; break;
+            case 'ArrowDown':  pushObj.y += 1; pushObj.dir = 3; break;
+          }
+		  if (assetPositions[pushObj.type].sheet === spritesheets.characters) {pushObj.state = ((pushObj.state) % 4) + (4 * pushObj.dir);}
+		})
+		obj.particles.push({type: "dust", x: obj.x, y: obj.y, dirbypi: (1 + (obj.dir * 0.5) % 2), time: 900, speed: 0.5, created: t});
+		switch(event.key) {
+          case 'ArrowRight': {obj.x += 1;} break;
+		  case 'ArrowUp':    {obj.y -= 1;} break;
+          case 'ArrowLeft':  {obj.x -= 1;} break;
+          case 'ArrowDown':  {obj.y += 1;} break;
+        }
+	  }
+	  animatingS = true;
+	  if (assetPositions[obj.type].sheet === spritesheets.characters) {obj.state = ((obj.state + 1) % 4) + (4 * obj.dir);}
 	}
   }
-  connectTiles();
+  if (event.key === "z" && moves > 0) {
+    for (const obj of gameObjects) {
+	  last = obj.hist.pop();
+	  if (last === 0) {
+	    gameObjects.splice(gameObjects.indexOf(obj), 1);
+      }	  
+	  obj.type = last.type;
+	  obj.x = last.x;
+	  obj.y = last.y;
+	  obj.dir = last.dir;
+	  obj.state = last.state;
+	  obj.text = last.text;
+	  obj.active = last.active;
+	}
+	animatingS = true;
+	moves--;
+  } else if (event.key.startsWith("Arrow")) {
+    parseText();
+    connectTiles();
+    checkWin();
+  }
 });
 </script>
 </body>
