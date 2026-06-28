@@ -71,9 +71,9 @@
   <button id="startBtn">Start Game</button>
 </div>
 <script>
-let saveProgress = {"currentWorld":"Map","currentLevel":"Baba Is You","lastLevel":"Baba Is You","gameProgress":[],"worldProgress":{}};
+let saveProgress = {"currentWorld":"Map","currentLevel":"Map","lastLevel":"Baba Is You","gameProgress":["Baba Is You"],"worldProgress":{}};
 //let saveProgress = {"currentWorld":"The Lake","currentLevel":"The Lake","lastLevel":"Affection","gameProgress":["Icy Waters","Turns","Affection","Pillar Yard","Brick Wall","Lock","Novice Locksmith","Locked In","Changeless","Two Doors","Burglary","Jelly Throne","Crab Storage"],"worldProgress":{"Map":["Baba Is You","Where Do I Go?","Now What Is This?","Still Out Of Reach","Grass Yard","Out Of Reach","Off Limits","Volcano"]}}
-//localStorage.setItem('save', JSON.stringify(saveProgress));
+localStorage.setItem('save', JSON.stringify(saveProgress));
 const loadedString = localStorage.getItem('save');
 if (loadedString) {
     saveProgress = JSON.parse(loadedString);
@@ -154,6 +154,9 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 	
 	await overworldSoundPromise;
 	await mapSoundPromise;
+	
+	const mapUpdatesResponse = await fetch(`mapUpdates.json`);
+	const mapUpdates = await mapUpdatesResponse.json();
 	
 	document.getElementById('startScreen').style.display = 'none';
 	
@@ -247,8 +250,8 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 		"REED":		{sheet: spritesheets.statics,		col: 776,	row: 526,	color: [32, 31, 32],	type: 0},
 		"TEXT":		{sheet: spritesheets.text,			col: 101,	row: 1,		color: [9, 7, 9],		type: 0},
 		"RED":		{sheet: spritesheets.text,			col: 176,	row: 1498,	color: [12, 11, 12],	type: 2},
-		"BLUE":		{sheet: spritesheets.text,			col: 251,	row: 1573,	color: [17, 17, 18],	type: 2},
-		"FLOAT":	{sheet: spritesheets.text,			col: 251,	row: 805,	color: [9, 7, 9],		type: 2},
+		"VIOLET":	{sheet: spritesheets.text,			col: 251,	row: 1573,	color: [17, 17, 18],	type: 2},
+		"FLOAT":	{sheet: spritesheets.text,			col: 251,	row: 805,	color: [3, 20, 21],		type: 2},
 		// ...add more as needed
 	};
 	
@@ -264,7 +267,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 		"steam":	{size: 18,	speed: 1.5,	xshift: 0,		yshift: 0,		smooth: false},
 	}
 	
-	const Worlds = ["Map", "The Lake", "Solitary Island", "Forest of Fall", "Temple Ruins", "Deep Forest", "Chasm", "Rocket Trip", "Flower Garden", "Volcanic Cavern", "Mountaintop"];
+	const Worlds = ["Map", "The Lake", "Solitary Island"];
 	let currentWorld = saveProgress["currentWorld"];
 	let worldProgress = saveProgress["worldProgress"];
 	
@@ -418,27 +421,8 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 	let gameObjects;
 	let inactives;
 	let particles;
-	
-	let buildLocs = [];
-	let path = [];
-	let revealed = []; //revealed path
-	
-	const subtleWorlds = {"Float": "Map"};
 
 	function initialize() {
-		if (currentLevel in subtleWorlds) {
-			bgColor = worldColors[subtleWorlds[currentLevel]][0];
-			document.body.style.backgroundColor = worldColors[subtleWorlds[currentLevel]][1];
-			palette = palettes[subtleWorlds[currentLevel]]; 
-			loadSound('Overworld', 'Music/' + subtleWorlds[currentLevel] + '.ogg');
-		}
-		if (lastLevel in subtleWorlds) {
-			bgColor = worldColors[currentWorld][0];
-			document.body.style.backgroundColor = worldColors[currentWorld][1];
-			palette = palettes[currentWorld]; 
-			loadSound('Overworld', 'Music/' + currentWorld + '.ogg');
-		}
-	
 		document.title = currentLevel;
 		if (currentLevel in worldNumbers) {document.getElementById('progress').innerHTML = gameProgress.length + '/' + worldNumbers[currentLevel][0];}
 		Music();
@@ -446,13 +430,11 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 		gameObjects = [];
 		inactives = [];
 		particles = [];
-		path = [];
-		revealed = [];
 		
 		loadLevel(currentLevel).then(levelData => {
 			levelData.objects.forEach((obj) => {
 				if (obj.type === "LEVEL") {
-					gameObjects.push({type: obj.type, x: obj.x, y: obj.y, color: obj.color, icon: obj.icon, name: obj.name, levelState: ["A Way Out?", "?"].includes(obj.name) ? 2 : Worlds.includes(obj.name) ? 1 : 0})
+					gameObjects.push({type: obj.type, x: obj.x, y: obj.y, color: obj.color, icon: obj.icon, name: obj.name})
 				} else {
 					gameObjects.push({type: obj.type, x: obj.x, y: obj.y})
 				}
@@ -479,16 +461,6 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 			
 				obj.hist = [];
 			});
-			
-			if (Worlds.includes(currentLevel)) {
-				levelData.pathData.forEach((obj) => {
-					path.push({x: obj.x, y: obj.y})
-				});
-				gameObjects.filter((obj) => (obj.type === "LEVEL" && (gameProgress.includes(obj.name) || obj.name === "Map"))).forEach((obj) => {
-					buildLocs.push({x:obj.x,y:obj.y});
-				});
-			}
-			
 			levelWidth = levelData.width;
 			levelHeight = levelData.height;
 		
@@ -731,7 +703,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 
 	function checkWin() {
 		gameObjects.filter((you) => (is(you, "YOU"))).forEach((you) => {
-			if (gameObjects.some((win) => (eqs[you.type].includes("WIN") || win.x === you.x && win.y === you.y && is(win, "WIN") && is(you, "FLOAT") === is(win, "FLOAT")))) {
+			if (gameObjects.some((win) => (eqs[you.type].includes("WIN") || win.x === you.x && win.y === you.y && is(win, "WIN")))) {
 				for (let i = 0; i < 9; i++) {particles.push({type: "ring", x: you.x, y: you.y, dirbypi: 2*Math.random(), time: 1800 + 100 * Math.floor(3*Math.random()), speed: 4 + Math.random(), created: t, color: 14, xshift: 0, yshift: 0});}
 				levelComplete = true;
 				exit = false;
@@ -827,8 +799,6 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 	}
 
 	function drawScene() {
-		const unitX = canvas.width / levelWidth
-		const unitY = canvas.height / levelHeight
 		ctx.imageSmoothingEnabled = false;
 		if (currentLevel === "Map") {
 			const xLocation = 31;
@@ -855,43 +825,41 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 		
 		// Draw each game object and particle
 		for (const obj of gameObjects) {
-			if (obj.type != "LEVEL" || (obj.type === "LEVEL" && obj.levelState > 0)) {
-				const cursor = obj.type === "CURSOR";
-				drawAsset(
-					ctx, obj.type,
-					(obj.x * (cursor ? linProg : realProg)) + (obj.lastx * (1 - (cursor ? linProg : realProg))),
-					(obj.y * (cursor ? linProg : realProg)) + (obj.lasty * (1 - (cursor ? linProg : realProg))),
-					(animationFrame + obj.frameSeed) % 3,
-					obj.text ? -1 : obj.state,
-					obj.type === "LEVEL" ? palette[obj.color] : palette[is(obj, "RED") ? 12 : is(obj, "BLUE") ? 18 : assetPositions[obj.type].color[obj.text + obj.active]]);
-				if (obj.type === "LEVEL" && obj.levelState > 1) {
-					const unitX = canvas.width / levelWidth
-					const unitY = canvas.height / levelHeight
-					if (gameProgress.includes(obj.name)) {ctx.globalAlpha = 0.2;}
-					if (obj.icon in levelIcons) {
-						let iconNum = levelIcons[obj.icon];
-						ctx.drawImage(
-							spritesheets.statics,
-							751 + (size + 1)*(iconNum % 5), 910 + (size + 1)*(iconNum - (iconNum % 5))/5, size, size,
-							(obj.x - 1) * unitX, (obj.y - 1) * unitY,
-							unitX, unitY
-						);
-					} else if (!(obj.icon === "")){
-						ctx.drawImage(
-							spritesheets.statics,
-							671 + parseInt(obj.icon[0]) * 8, 985, 7, 16,
-							(obj.x - 1 + 5/size) * unitX, (obj.y - 1 + 4/size) * unitY,
-							7 * (unitX / size), 16 * (unitY / size)
-						);
-						ctx.drawImage(
-							spritesheets.statics,
-							671 + parseInt(obj.icon[1]) * 8, 985, 7, 16,
-							(obj.x - 1 + 13/size) * unitX, (obj.y - 1 + 4/size) * unitY,
-							7 * (unitX / size), 16 * (unitY / size)
-						);
-					}
-					ctx.globalAlpha = 1.0;
+			const cursor = obj.type === "CURSOR";
+			drawAsset(
+				ctx, obj.type,
+				(obj.x * (cursor ? linProg : realProg)) + (obj.lastx * (1 - (cursor ? linProg : realProg))),
+				(obj.y * (cursor ? linProg : realProg)) + (obj.lasty * (1 - (cursor ? linProg : realProg))),
+				(animationFrame + obj.frameSeed) % 3,
+				obj.text ? -1 : obj.state,
+				obj.type === "LEVEL" ? palette[obj.color] : palette[assetPositions[obj.type].color[obj.text + obj.active]]);
+			if (obj.type === "LEVEL") {
+				const unitX = canvas.width / levelWidth
+				const unitY = canvas.height / levelHeight
+				if (gameProgress.includes(obj.name)) {ctx.globalAlpha = 0.2;}
+				if (obj.icon in levelIcons) {
+					let iconNum = levelIcons[obj.icon];
+					ctx.drawImage(
+						spritesheets.statics,
+						751 + (size + 1)*(iconNum % 5), 910 + (size + 1)*(iconNum - (iconNum % 5))/5, size, size,
+						(obj.x - 1) * unitX, (obj.y - 1) * unitY,
+						unitX, unitY
+					);
+				} else if (!(obj.icon === "")){
+					ctx.drawImage(
+						spritesheets.statics,
+						671 + parseInt(obj.icon[0]) * 8, 985, 7, 16,
+						(obj.x - 1 + 5/size) * unitX, (obj.y - 1 + 4/size) * unitY,
+						7 * (unitX / size), 16 * (unitY / size)
+					);
+					ctx.drawImage(
+						spritesheets.statics,
+						671 + parseInt(obj.icon[1]) * 8, 985, 7, 16,
+						(obj.x - 1 + 13/size) * unitX, (obj.y - 1 + 4/size) * unitY,
+						7 * (unitX / size), 16 * (unitY / size)
+					);
 				}
+				ctx.globalAlpha = 1.0;
 			}
 		}
 		particles.filter((part) => (t - part.created >= part.time)).forEach((part) => {particles.splice(particles.indexOf(part), 1);})
@@ -922,6 +890,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 				palette[part.color],
 				true);
 		})
+		musicGain.gain.value = ((+you * realProg) + (+lastyou * (1 - realProg))) * bgmVol;
 	}
 
 	let animationStarted = false;
@@ -979,69 +948,27 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 	let you = true;
 	let lastyou = true;
 	
-	function modifyMap(x, y, newLevel = false) {
-		let level = gameObjects.find((lvl) => (lvl.type === "LEVEL" && lvl.x === x && lvl.y === y))
-		if (level) {
-			level.levelState = 2;
-			if (level.name != "Map" && (!gameProgress.includes(level.name) || (level.name === lastLevel && !newLevel))) return;
-		} else {
-			if (!gameObjects.find((lin) => (lin.type === "LINE" && lin.x === x && lin.y === y))) {
-				gameObjects.push({ type: (currentWorld === "Map" && x === 15 && y === 14) ? "GATE" : "LINE", x: x, y: y, text: false, active: false, dir: 0, state: 0, frameSeed: Math.floor(Math.random() * 3), lastx: x, lasty: y, hist: new Array(moves).fill(0)});
-			}
-		}
-		if (path.find((pth) => (pth.x === x + 1 && pth.y === y)) && !revealed.find((rvd) => (rvd.x === x + 1 && rvd.y === y)) && !buildLocs.find((loc) => (loc.x === x + 1 && loc.y === y))) {buildLocs.push({x: x+1, y: y})}
-		if (path.find((pth) => (pth.x === x && pth.y === y - 1)) && !revealed.find((rvd) => (rvd.x === x && rvd.y === y - 1)) && !buildLocs.find((loc) => (loc.x === x && loc.y === y - 1))) {buildLocs.push({x: x, y: y-1})}
-		if (path.find((pth) => (pth.x === x - 1 && pth.y === y)) && !revealed.find((rvd) => (rvd.x === x - 1 && rvd.y === y)) && !buildLocs.find((loc) => (loc.x === x - 1 && loc.y === y))) {buildLocs.push({x: x-1, y: y})}
-		if (path.find((pth) => (pth.x === x && pth.y === y + 1)) && !revealed.find((rvd) => (rvd.x === x && rvd.y === y + 1)) && !buildLocs.find((loc) => (loc.x === x && loc.y === y + 1))) {buildLocs.push({x: x, y: y+1})}
-	}
+	let worldComplete = false;
 
 	function animate(time) {
 		if (lastLevelComplete && !levelComplete) {
 			resizeCanvas(false);
-			if (Worlds.includes(currentLevel)) {
-				if (!Worlds.includes(lastLevel) && !exit) {
-					let normalVictory = false;
-					if (currentLevel in worldNumbers) {
-						if (worldNumbers[currentLevel][0] === gameProgress.length) {
-							playSFX('area clear');
-						} else if (worldNumbers[currentLevel][1] === gameProgress.length) {
-							playSFX('area complete');
-						} else {
-							normalVictory = true;
-						}
+			if (Worlds.includes(currentLevel) && !Worlds.includes(lastLevel) && !exit) {
+				let normalVictory = false;
+				if (currentLevel in worldNumbers) {
+					if (worldNumbers[currentLevel][0] === gameProgress.length) {
+						playSFX('area clear');
+					} else if (worldNumbers[currentLevel][1] === gameProgress.length) {
+						playSFX('area complete');
 					} else {
 						normalVictory = true;
 					}
-					if (normalVictory) {playSFX('level complete');}
+				} else {
+					normalVictory = true;
 				}
+				if (normalVictory) {playSFX('level complete');}
 			}
 		}
-		
-		if (newLevel && Worlds.includes(currentLevel)) {
-			newLevel = false;
-			while (buildLocs.length > 0) {
-				buildLocs.forEach((loc) => {if (currentWorld != "Map" || loc.x != 15 || loc.y != 14) {revealed.push({x: loc.x, y: loc.y});}})
-				let buildingLocs = buildLocs;
-				buildLocs = [];
-				buildingLocs.forEach((loc) => {
-					modifyMap(loc.x, loc.y);
-				});
-				connectTiles();
-			}
-			lastLevelCoords = gameObjects.find((obj) => (obj.type === "LEVEL" && obj.name === lastLevel));
-			buildLocs = [{x: lastLevelCoords.x, y: lastLevelCoords.y}]
-			buildingLevel = true;
-			buildingLevelTime = time;
-			
-			let cursor = gameObjects.find((obj) => (obj.type === "CURSOR"));
-			let level = gameObjects.find((obj) => (obj.type === "LEVEL" && obj.name === lastLevel));
-			if (cursor && level) {
-				cursor.x = level.x;
-				cursor.y = level.y;
-				document.getElementById('header').innerHTML = (level.name in worldNumbers ? (Object.keys(worldNumbers).indexOf(level.name) + 1) + ". " : "") + level.name;
-			}
-		}
-		
 		sparkle = false;
 		if (time - lastSparkleTime > sparkleTime) {
 			lastSparkleTime = time;
@@ -1059,22 +986,6 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 			}
 		}
 		
-		if (buildingLevel) {
-			if (time > buildingLevelTime + buildingLevelWait) {		
-				buildLocs.forEach((loc) => {if (currentWorld != "Map" || loc.x != 15 || loc.y != 14) {revealed.push({x: loc.x, y: loc.y});}})
-				buildingLevelTime = time;
-				let buildingLocs = buildLocs;
-				buildLocs = [];
-				buildingLocs.forEach((loc) => {
-					
-					modifyMap(loc.x, loc.y, true);
-				});
-				connectTiles();
-				buildingLevelWait = buildingLevelSpeed;
-				if (buildLocs.length === 0) {buildingLevel = false; buildingLevelWait = buildingLevelDelay;}
-			}
-		}
-		
 		if (time - lastFrameTime > animationSpeed) {
 			animationFrame++;
 			lastFrameTime = time;
@@ -1086,6 +997,62 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 			levelTransitionTime = time;
 			
 			cloudColor = worldColors[currentWorld][1];
+		}
+		
+		function modifyMap(build) {
+			if (build.type === "LEVEL") {
+				let oldLevel = gameObjects.find((oldLevel) => (oldLevel.x === build.x && oldLevel.y === build.y))
+				if (oldLevel) {
+					oldLevel.icon = build.icon;
+					oldLevel.name = build.name;
+				} else {
+					gameObjects.unshift({ type: build.type, x: build.x, y: build.y, text: false, active: false, dir: 0, state: 0, frameSeed: Math.floor(Math.random() * 3), lastx: build.x, lasty: build.y, hist: new Array(moves).fill(0), color: build.color, icon: build.icon, name: build.name});
+				}
+			} else {
+				gameObjects.unshift({ type: build.type, x: build.x, y: build.y, text: false, active: false, dir: 0, state: 0, frameSeed: Math.floor(Math.random() * 3), lastx: build.x, lasty: build.y, hist: new Array(moves).fill(0)});
+			}
+		}
+		
+		if (newLevel && Worlds.includes(currentLevel)) {
+			newLevel = false;
+			let levelList = gameProgress;
+			if (!exit || worldComplete) {
+				levelList = gameProgress.slice(0, -1);
+				let completedLevel = gameProgress[gameProgress.length - 1];
+				if (completedLevel in mapUpdates) {
+					currentBuilds = mapUpdates[gameProgress[gameProgress.length - 1]].slice();
+					buildingLevel = true;
+					buildingLevelTime = time;
+				}
+				worldComplete = false;
+			}
+			levelList.forEach((builds) => {
+				if (builds in mapUpdates) {mapUpdates[builds].forEach((build) => {modifyMap(build);})}
+			});
+			connectTiles();
+			let cursor = gameObjects.find((obj) => (obj.type === "CURSOR"));
+			let level = gameObjects.find((obj) => (obj.type === "LEVEL" && obj.name === lastLevel));
+			if (cursor && level) {
+				cursor.x = level.x;
+				cursor.y = level.y;
+				document.getElementById('header').innerHTML = (level.name in worldNumbers ? (Object.keys(worldNumbers).indexOf(level.name) + 1) + ". " : "") + level.name;
+			}
+		}
+		
+		if (buildingLevel) {
+			if (time > buildingLevelTime + buildingLevelWait) {				
+				buildingLevelTime = time;
+				let skip = true;
+				while (skip) {
+					build = currentBuilds.pop();
+					skip = false;
+					modifyMap(build);
+					if (build.buildNext === true) {skip = true;}
+				}
+				connectTiles();
+				buildingLevelWait = buildingLevelSpeed;
+				if (currentBuilds.length === 0) {buildingLevel = false; buildingLevelWait = buildingLevelDelay;}
+			}
 		}
 		
 		if (animatingS) {
@@ -1168,7 +1135,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 							loadSound('Overworld', 'Music/' + currentWorld + '.ogg');
 							let areaCleared = (currentWorld === "Map" && gameProgress.length >= worldNumbers[currentLevel][0]);
 							if (currentWorld in worldProgress) {gameProgress = worldProgress[currentWorld]; if (areaCleared) {exit = true;}} else {gameProgress = [];}
-							if (areaCleared && !gameProgress.includes(currentLevel)) {gameProgress.push(currentLevel);} else {exit = true;}
+							if (areaCleared && !gameProgress.includes(currentLevel)) {gameProgress.push(currentLevel); worldComplete = true;} else {exit = true;}
 						}
 					} else if (!exit) {
 						if (!gameProgress.includes(currentLevel)) {gameProgress.push(currentLevel);} else {exit = true;}
@@ -1224,14 +1191,13 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 				case 3:	colly += 1; break;
 			}
 			if (open) {
-				let openShuts = gameObjects.filter((shut) => (is(shut, "SHUT") && !is(shut, "YOU") && shut.x === collx && shut.y === colly && !moribund.includes(shut) && is(shut, "FLOAT") === is(open, "FLOAT")))
+				let openShuts = gameObjects.filter((shut) => (is(shut, "SHUT") && !is(shut, "YOU") && shut.x === collx && shut.y === colly && !moribund.includes(shut)))
 				if (openShuts.length > 0) {
 					shuts = openShuts;
 					unlocked = true;
 				}
 			} else if (shuts.length > 0) {
 				let shutsOpen = gameObjects.find((shut) => (is(shut, "OPEN") && !is(shut, "YOU") && shut.x === collx && shut.y === colly))
-				shuts = shuts.filter((shut) => (is(shutsOpen, "FLOAT") === is(shut, "FLOAT")));
 				if (shutsOpen) {
 					open = shutsOpen;
 					unlocked = true;
@@ -1287,6 +1253,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 
 	window.addEventListener('keydown', function(event) {
 		lastyou = you;
+		console.log(prog)
 		if (prog != 0 || levelComplete) return; // Ignore auto-repeats and when animating smooth movement
 		if (event.key === "Escape" && !Worlds.includes(currentLevel)) {
 			levelComplete = true;
@@ -1298,7 +1265,6 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 			exit = true;
 			nextLevel = currentLevel;
 		}
-		
 		gameObjects.forEach((obj) => {
 			obj.lastx = obj.x;
 			obj.lasty = obj.y;
@@ -1342,12 +1308,12 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 								case 'ArrowLeft':	newx -= 1; break;
 								case 'ArrowDown':	newy += 1; break;
 						}
-						if (revealed.find((rvd) => (rvd.x === newx && rvd.y === newy))) {
+						let newLvl = gameObjects.find((path) => (((path.type === "LEVEL" && path.name != "") || path.type === "LINE") && path.x === newx && path.y === newy))
+						if (newLvl) {
 							obj.x = newx;
 							obj.y = newy;
 							animatingS = true;
-							newLvl = gameObjects.find((obj) => (obj.type === "LEVEL" && obj.x === newx && obj.y === newy))
-							document.getElementById('header').innerHTML = newLvl ? (newLvl.name in worldNumbers ? (Object.keys(worldNumbers).indexOf(newLvl.name) + 1) + ". " : "") + newLvl.name : "";
+							document.getElementById('header').innerHTML = newLvl.type === "LEVEL" ? (newLvl.name in worldNumbers ? (Object.keys(worldNumbers).indexOf(newLvl.name) + 1) + ". " : "") + newLvl.name : "";
 						}
 					}
 				} else if (event.code === "Space") {
@@ -1392,7 +1358,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 				for (i = 0; i < 9; i++) {particles.push({type: "sparkle", x: unlocked.x, y: unlocked.y, dirbypi: 2 * Math.random(), time: 450, speed: 1, created: t, color: 14, xshift: Math.random() - 0.5, yshift: Math.random() - 0.5});}
         });
 		gameObjects.filter((sink) => (is(sink, "SINK"))).forEach((sink) => {
-			let sinking = gameObjects.filter((sinking) => (sinking != sink && sink.x === sinking.x && sink.y === sinking.y && is(sink, "FLOAT") === is(sinking, "FLOAT")))
+			let sinking = gameObjects.filter((sinking) => (sinking != sink && sink.x === sinking.x && sink.y === sinking.y))
 			if (sinking.length > 0) {
 				sinking.forEach((sunk) => { if (!moribund.includes(sunk)) { moribund.push(sunk) } });
 				if (!moribund.includes(sink)) { moribund.push(sink) }
@@ -1401,7 +1367,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 			}
 		});
         gameObjects.filter((defeat) => (is(defeat, "DEFEAT"))).forEach((defeater) => {
-            let defeated = gameObjects.filter((defeated) => (is(defeated, "YOU") && defeater.x === defeated.x && defeater.y === defeated.y && is(defeater, "FLOAT") === is(defeated, "FLOAT")))
+            let defeated = gameObjects.filter((defeated) => (is(defeated, "YOU") && defeater.x === defeated.x && defeater.y === defeated.y))
             if (defeated.length > 0) {
                 defeated.forEach((defeated) => {
 					if (!moribund.includes(defeated)) { moribund.push(defeated) }
@@ -1411,7 +1377,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
             }
         });
 		gameObjects.filter((hot) => (is(hot, "HOT"))).forEach((hot) => {
-            let melt = gameObjects.filter((melt) => (is(melt, "MELT") && hot.x === melt.x && hot.y === melt.y && is(hot, "FLOAT") === is(melt, "FLOAT")))
+            let melt = gameObjects.filter((melt) => (is(melt, "MELT") && hot.x === melt.x && hot.y === melt.y))
             if (melt.length > 0) {
                 melt.forEach((melt) => { if (!moribund.includes(melt)) { moribund.push(melt) } });
 				defeat = true;
@@ -1427,10 +1393,8 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 		you = gameObjects.some((obj) => (is(obj, "YOU"))) || Worlds.includes(currentLevel);
 		if (!you && lastyou) {
 			silenceSound = playSFX('silence', 0.5, true);
-			musicGain.gain.value = 0;
 		} else if (you && !lastyou && silenceSound) {
 			silenceSound.stop();
-			musicGain.gain.value = bgmVol;
 		}
 		if (event.key != "z") {connectTiles();}
 	});
